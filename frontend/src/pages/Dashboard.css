@@ -1,0 +1,249 @@
+/* ── Dashboard Page ──────────────────────────────────────────────── */
+.dashboard-page {
+  min-height: 100vh;
+  background: #0a0a0f;
+  position: relative;
+  overflow: hidden;
+  font-family: 'DM Sans', 'Segoe UI', sans-serif;
+}
+
+/* Background orbs */
+.dash-orb-1 {
+  width: 550px;
+  height: 550px;
+  background: rgba(99, 71, 255, 0.1);
+  top: -180px;
+  right: -120px;
+  animation: floatDash 10s ease-in-out infinite;
+}
+.dash-orb-2 {
+  width: 450px;
+  height: 450px;
+  background: rgba(0, 198, 172, 0.07);
+  bottom: -120px;
+  left: -100px;
+  animation: floatDash 13s ease-in-out infinite 4s;
+}
+
+@keyframes floatDash {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%       { transform: translateY(-28px) scale(1.04); }
+}
+
+/* Container */
+.dashboard-container {
+  position: relative;
+  z-index: 1;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px 24px 80px;
+}
+
+/* ── Header ──────────────────────────────────────────────────────── */
+.dash-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 64px;
+}
+.dash-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.dash-logo-icon { font-size: 24px; }
+.dash-brand {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.3px;
+}
+
+.dash-user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.dash-avatar {
+  width: 38px;
+  height: 38px;
+  background: linear-gradient(135deg, #6347ff, #00c6ac);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+}
+.dash-username {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 14px;
+}
+
+/* ── Hero ────────────────────────────────────────────────────────── */
+.dash-hero {
+  text-align: center;
+  margin-bottom: 56px;
+}
+.dash-greeting {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-bottom: 14px;
+}
+.dash-headline {
+  font-size: clamp(28px, 4vw, 44px);
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -1.2px;
+  line-height: 1.15;
+  margin-bottom: 14px;
+}
+.dash-subline {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.35);
+  line-height: 1.6;
+}
+
+/* ── Mode Cards Grid ─────────────────────────────────────────────── */
+.modes-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 40px;
+}
+
+@media (max-width: 580px) {
+  .modes-grid { grid-template-columns: 1fr; }
+}
+
+.mode-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 22px;
+  padding: 26px 22px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  text-align: left;
+  overflow: hidden;
+  transition: transform 0.25s ease,
+              border-color 0.25s ease,
+              box-shadow 0.25s ease;
+  animation: cardIn 0.55s ease both;
+}
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Per-mode hover border colors */
+.mode-chat:hover   { border-color: rgba(99, 71, 255, 0.5); }
+.mode-study:hover  { border-color: rgba(0, 198, 172, 0.5); }
+.mode-coding:hover { border-color: rgba(243, 156, 18, 0.5); }
+.mode-math:hover   { border-color: rgba(231, 76, 60, 0.5); }
+
+.mode-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+}
+
+/* Glow blob that shows on hover */
+.card-glow {
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  filter: blur(50px);
+  top: -60px;
+  right: -40px;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+}
+.mode-card:hover .card-glow { opacity: 0.6; }
+
+/* Icon wrapper */
+.mode-icon-wrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+/* Text */
+.mode-info {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+}
+.mode-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 6px;
+  letter-spacing: -0.2px;
+}
+.mode-desc {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.38);
+  line-height: 1.55;
+}
+
+/* Arrow */
+.mode-arrow {
+  font-size: 20px;
+  color: rgba(255, 255, 255, 0.18);
+  transition: color 0.2s, transform 0.2s;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+.mode-card:hover .mode-arrow {
+  color: rgba(255, 255, 255, 0.75);
+  transform: translateX(5px);
+}
+
+/* ── Stats Bar ───────────────────────────────────────────────────── */
+.dash-stats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 18px 28px;
+  flex-wrap: wrap;
+}
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.stat-icon { font-size: 16px; }
+.stat-text {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.38);
+}
+.stat-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+@media (max-width: 500px) {
+  .stat-divider { display: none; }
+  .dash-stats { flex-direction: column; gap: 12px; }
+  .dash-header { margin-bottom: 40px; }
+}
