@@ -14,183 +14,137 @@ TAVILY_KEY = os.getenv("TAVILY_API_KEY")
 MODEL = "llama-3.3-70b-versatile"
 
 
-# ── Tools the agent can use ───────────────────────────────────────
-TOOLS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "search_web",
-            "description": "Search the internet for current real-time information. Use this when the user asks about recent events, current news, live data, prices, sports scores, weather, or anything that needs up-to-date information beyond your training data.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "The search query to look up on the web"
-                    }
-                },
-                "required": ["query"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "search_news",
-            "description": "Search for the latest news on a topic. Use this when the user asks about recent news, breaking news, current events, or latest updates on any topic.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "The news topic to search for"
-                    }
-                },
-                "required": ["query"]
-            }
-        }
-    }
-]
-
-
-# ── Tool execution ────────────────────────────────────────────────
-def execute_tool(tool_name, tool_args):
-    """Actually run the tool the AI decided to use."""
+# ── Web search function ───────────────────────────────────────────
+def search_web(query, news=False):
+    """Search the web using Tavily API."""
     try:
-        if tool_name == "search_web":
-            response = http_requests.post(
-                "https://api.tavily.com/search",
-                json={
-                    "api_key": TAVILY_KEY,
-                    "query": tool_args["query"],
-                    "max_results": 5,
-                    "search_depth": "basic"
-                },
-                timeout=10
-            )
-            results = response.json().get("results", [])
-            formatted = []
-            for r in results:
-                formatted.append(
-                    f"Source: {r['url']}\n"
-                    f"Title: {r['title']}\n"
-                    f"Content: {r['content'][:500]}\n"
-                )
-            return "\n---\n".join(formatted) or "No results found."
+        payload = {
+            "api_key": TAVILY_KEY,
+            "query": query,
+            "max_results": 5,
+            "search_depth": "basic"
+        }
+        if news:
+            payload["topic"] = "news"
 
-        elif tool_name == "search_news":
-            response = http_requests.post(
-                "https://api.tavily.com/search",
-                json={
-                    "api_key": TAVILY_KEY,
-                    "query": tool_args["query"],
-                    "max_results": 5,
-                    "search_depth": "basic",
-                    "topic": "news"
-                },
-                timeout=10
+        response = http_requests.post(
+            "https://api.tavily.com/search",
+            json=payload,
+            timeout=10
+        )
+        results = response.json().get("results", [])
+        formatted = []
+        for r in results:
+            formatted.append(
+                f"Title: {r['title']}\n"
+                f"Source: {r['url']}\n"
+                f"Info: {r['content'][:400]}"
             )
-            results = response.json().get("results", [])
-            formatted = []
-            for r in results:
-                formatted.append(
-                    f"Source: {r['url']}\n"
-                    f"Title: {r['title']}\n"
-                    f"Content: {r['content'][:500]}\n"
-                )
-            return "\n---\n".join(formatted) or "No news found."
-
+        return "\n\n".join(formatted) if formatted else "No results found."
     except Exception as e:
-        return f"Tool error: {str(e)}"
+        return f"Search failed: {str(e)}"
+
+
+# ── Decide if search is needed ────────────────────────────────────
+def needs_search(message: str) -> bool:
+    """
+    Simple keyword-based check to decide if web search is needed.
+    More reliable than letting the model decide via tool calls.
+    """
+    message_lower = message.lower()
+
+    search_keywords = [
+        # Time-sensitive
+        "today", "latest", "current", "now", "recent", "2024", "2025", "2026",
+        "this week", "this month", "this year", "right now", "live",
+        # News
+        "news", "update", "announce", "release", "launch", "just",
+        # Prices / data
+        "price", "stock", "crypto", "bitcoin", "rate", "cost",
+        # Sports
+        "score", "match", "winner", "ipl", "cricket", "football",
+        "who won", "result",
+        # People / events
+        "who is", "what happened", "where is", "weather",
+        # Explicit search intent
+        "search", "find", "look up", "google",
+    ]
+
+    return any(keyword in message_lower for keyword in search_keywords)
+
+
+def is_news_query(message: str) -> bool:
+    """Check if it's specifically a news query."""
+    news_keywords = [
+        "news", "headline", "breaking", "latest news",
+        "what happened", "current events", "update"
+    ]
+    return any(k in message.lower() for k in news_keywords)
 
 
 # ── Agent loop ────────────────────────────────────────────────────
 def run_agent(messages, mode):
     """
-    Agent loop:
-    1. Ask Groq what to do next
-    2. If Groq wants a tool → run it → feed result back
-    3. Repeat until Groq gives final answer
+    Smart agent:
+    1. Check if search is needed based on message keywords
+    2. If yes → search web → inject results into prompt
+    3. Always give final answer via Groq
     """
+    # Get the latest user message
+    user_message = ""
+    for msg in reversed(messages):
+        if msg["role"] == "user":
+            user_message = msg["content"]
+            break
+
     system_prompt = get_prompt(mode)
-    system_prompt += """
+    search_context = ""
 
-You are also an AI agent with access to real-time web search tools.
-- Use search_web when you need current information, facts, prices, or anything beyond your training data.
-- Use search_news for recent news and current events.
-- Always search before saying you don't know something that could be found online.
-- After searching, synthesize the results into a clear helpful answer.
-- Mention your sources when using search results.
+    # ── Step 1: Decide if search needed ──
+    if needs_search(user_message):
+        print(f"🔍 Searching web for: {user_message}")
+
+        is_news = is_news_query(user_message)
+        search_results = search_web(user_message, news=is_news)
+
+        search_context = f"""
+REAL-TIME WEB SEARCH RESULTS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{search_results}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Use the above search results to answer the user's question accurately.
+Always mention your sources. If results are not relevant, use your training data.
 """
+        print(f"✅ Search complete")
 
-    groq_messages = [{"role": "system", "content": system_prompt}]
+    # ── Step 2: Build final prompt ──
+    if search_context:
+        full_system = system_prompt + "\n\n" + search_context + """
+
+You are an AI agent with real-time web access.
+When you have search results, use them to give accurate, up-to-date answers.
+Always cite your sources at the end of your response.
+"""
+    else:
+        full_system = system_prompt
+
+    # ── Step 3: Get answer from Groq ──
+    groq_messages = [{"role": "system", "content": full_system}]
     groq_messages.extend(messages)
 
-    max_iterations = 5
-    iteration = 0
+    response = client.chat.completions.create(
+        model=MODEL,
+        max_tokens=2048,
+        messages=groq_messages,
+        temperature=0.7,
+    )
 
-    while iteration < max_iterations:
-        iteration += 1
-
-        response = client.chat.completions.create(
-            model=MODEL,
-            max_tokens=2048,
-            messages=groq_messages,
-            tools=TOOLS,
-            tool_choice="auto",
-            temperature=0.7,
-        )
-
-        choice = response.choices[0]
-        message = choice.message
-
-        # ── Groq wants to use a tool ──
-        if choice.finish_reason == "tool_calls" and message.tool_calls:
-
-            groq_messages.append({
-                "role": "assistant",
-                "content": message.content or "",
-                "tool_calls": [
-                    {
-                        "id": tc.id,
-                        "type": "function",
-                        "function": {
-                            "name": tc.function.name,
-                            "arguments": tc.function.arguments
-                        }
-                    }
-                    for tc in message.tool_calls
-                ]
-            })
-
-            # Run each tool
-            for tool_call in message.tool_calls:
-                tool_name = tool_call.function.name
-                tool_args = json.loads(tool_call.function.arguments)
-
-                print(f"🔧 Agent using: {tool_name} → {tool_args}")
-
-                tool_result = execute_tool(tool_name, tool_args)
-
-                # Feed result back to Groq
-                groq_messages.append({
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "content": tool_result
-                })
-
-            continue  # loop again with search results
-
-        # ── Groq has final answer ──
-        else:
-            return message.content.strip()
-
-    return "I searched for information but couldn't complete the task. Please try again."
+    return response.choices[0].message.content.strip()
 
 
 # ── Title generator ───────────────────────────────────────────────
 def generate_title(first_message: str) -> str:
-    """Auto-generate a short conversation title from the first user message."""
+    """Auto-generate a short conversation title."""
     try:
         response = client.chat.completions.create(
             model=MODEL,
@@ -254,7 +208,7 @@ def chat():
     except Exception as e:
         return jsonify({"error": f"AI service error: {str(e)}"}), 503
 
-    # Save messages to DB
+    # Save to DB
     user_msg = Message(
         conversation_id=conversation.id,
         role="user",
@@ -268,14 +222,12 @@ def chat():
     db.session.add(user_msg)
     db.session.add(ai_msg)
 
-    # Auto-title on first message
+    # Auto-title first message
     if len(history) == 0:
         conversation.title = generate_title(message)
 
-    # Update timestamp
     from datetime import datetime, timezone
     conversation.updated_at = datetime.now(timezone.utc)
-
     db.session.commit()
 
     return jsonify({
