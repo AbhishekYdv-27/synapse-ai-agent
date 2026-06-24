@@ -22,7 +22,6 @@ def register():
     email = data.get("email", "").strip().lower()
     password = data.get("password", "")
 
-    # Validation
     if not username or not email or not password:
         return jsonify({"error": "All fields are required"}), 400
 
@@ -35,14 +34,12 @@ def register():
     if not validate_password(password):
         return jsonify({"error": "Password must be at least 6 characters"}), 400
 
-    # Check duplicates
     if User.query.filter_by(username=username).first():
         return jsonify({"error": "Username already taken"}), 409
 
     if User.query.filter_by(email=email).first():
         return jsonify({"error": "Email already registered"}), 409
 
-    # Create user
     user = User(username=username, email=email)
     user.set_password(password)
     db.session.add(user)
@@ -86,8 +83,66 @@ def login():
 def get_me():
     user_id = get_jwt_identity()
     user = User.query.get(int(user_id))
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify({"user": user.to_dict()}), 200
 
+
+# ── NEW: Update profile ───────────────────────────────────────────
+@auth_bp.route("/profile", methods=["PATCH"])
+@jwt_required()
+def update_profile():
+    user_id = int(get_jwt_identity())
+    user = User.query.get(user_id)
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    return jsonify({"user": user.to_dict()}), 200
+    data = request.get_json()
+    new_username = data.get("username", "").strip()
+
+    if not new_username:
+        return jsonify({"error": "Username is required"}), 400
+
+    if len(new_username) < 3:
+        return jsonify({"error": "Username must be at least 3 characters"}), 400
+
+    # Check if username taken by another user
+    existing = User.query.filter_by(username=new_username).first()
+    if existing and existing.id != user_id:
+        return jsonify({"error": "Username already taken"}), 409
+
+    user.username = new_username
+    db.session.commit()
+
+    return jsonify({
+        "message": "Profile updated successfully",
+        "user": user.to_dict()
+    }), 200
+
+
+# ── NEW: Change password ──────────────────────────────────────────
+@auth_bp.route("/change-password", methods=["PATCH"])
+@jwt_required()
+def change_password():
+    user_id = int(get_jwt_identity())
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    data = request.get_json()
+    current_password = data.get("current_password", "")
+    new_password = data.get("new_password", "")
+
+    if not current_password or not new_password:
+        return jsonify({"error": "Both fields are required"}), 400
+
+    if not user.check_password(current_password):
+        return jsonify({"error": "Current password is incorrect"}), 401
+
+    if len(new_password) < 6:
+        return jsonify({"error": "New password must be at least 6 characters"}), 400
+
+    user.set_password(new_password)
+    db.session.commit()
+
+    return jsonify({"message": "Password changed successfully"}), 200

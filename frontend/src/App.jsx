@@ -4,11 +4,11 @@ import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Chat from "./pages/Chat";
+import Profile from "./pages/Profile";
 
 function PrivateRoute({ children }) {
   return getToken() ? children : <Navigate to="/login" replace />;
 }
-
 function PublicRoute({ children }) {
   return !getToken() ? children : <Navigate to="/dashboard" replace />;
 }
@@ -18,22 +18,10 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Landing />} />
-
-        <Route
-          path="/login"
-          element={<PublicRoute><Login /></PublicRoute>}
-        />
-
-        <Route
-          path="/dashboard"
-          element={<PrivateRoute><Dashboard /></PrivateRoute>}
-        />
-
-        <Route
-          path="/chat/:mode"
-          element={<PrivateRoute><Chat /></PrivateRoute>}
-        />
-
+        <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+        <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+        <Route path="/chat/:mode" element={<PrivateRoute><Chat /></PrivateRoute>} />
+        <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

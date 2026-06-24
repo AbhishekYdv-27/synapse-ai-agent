@@ -82,3 +82,17 @@ export const historyAPI = {
   clearAll: () =>
     request("/conversations", { method: "DELETE" }),
 };
+// ── Profile ────────────────────────────────────────────────────────
+export const profileAPI = {
+  update: (username) =>
+    request("/auth/profile", {
+      method: "PATCH",
+      body: JSON.stringify({ username }),
+    }),
+
+  changePassword: (current_password, new_password) =>
+    request("/auth/change-password", {
+      method: "PATCH",
+      body: JSON.stringify({ current_password, new_password }),
+    }),
+};
