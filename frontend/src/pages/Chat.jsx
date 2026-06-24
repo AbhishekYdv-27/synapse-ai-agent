@@ -1,13 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  Send,
-  ArrowLeft,
-  Plus,
-  MessageSquare,
-  BookOpen,
-  Code2,
-  Calculator,
+  Send, ArrowLeft, Plus, MessageSquare,
+  BookOpen, Code2, Calculator, Menu
 } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import MessageBubble from "../components/MessageBubble";
@@ -43,10 +38,10 @@ const MODE_CONFIG = {
 };
 
 const SUGGESTIONS = {
-  chat:   ["Tell me a joke 😄", "What's something interesting?", "Play 20 questions with me"],
-  study:  ["Explain quantum entanglement", "How does the brain store memories?", "What is recursion?"],
-  coding: ["Write a REST API in Python", "Explain Big O notation", "Debug my JavaScript code"],
-  math:   ["Solve x² + 5x + 6 = 0", "Integrate sin(x)dx", "Explain Pythagorean theorem"],
+  chat:   ["Tell me a joke 😄", "What's something interesting?", "Play 20 questions"],
+  study:  ["Explain quantum entanglement", "How does memory work?", "What is recursion?"],
+  coding: ["Write a REST API in Python", "Explain Big O notation", "Debug my JS code"],
+  math:   ["Solve x² + 5x + 6 = 0", "Integrate sin(x)dx", "Pythagorean theorem"],
 };
 
 export default function Chat() {
@@ -55,27 +50,21 @@ export default function Chat() {
   const modeConfig = MODE_CONFIG[mode] || MODE_CONFIG.chat;
 
   const {
-    messages,
-    isLoading,
-    error,
-    conversationId,
-    conversationTitle,
-    sendMessage,
-    loadConversation,
-    resetChat,
+    messages, isLoading, error,
+    conversationId, conversationTitle,
+    sendMessage, loadConversation, resetChat,
   } = useChat(mode);
 
   const [input, setInput] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false); // mobile sidebar state
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const textareaRef = useRef(null);
 
-  // Auto scroll on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
-  // Focus input on load
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
@@ -84,7 +73,6 @@ export default function Chat() {
     if (!input.trim() || isLoading) return;
     sendMessage(input);
     setInput("");
-    // Reset textarea height
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
@@ -99,10 +87,8 @@ export default function Chat() {
 
   function handleTextareaChange(e) {
     setInput(e.target.value);
-    // Auto grow textarea
     e.target.style.height = "auto";
-    e.target.style.height =
-      Math.min(e.target.scrollHeight, 140) + "px";
+    e.target.style.height = Math.min(e.target.scrollHeight, 140) + "px";
   }
 
   function handleNewChat() {
@@ -114,27 +100,33 @@ export default function Chat() {
     inputRef.current?.focus();
   }
 
-  function handleSuggestion(text) {
-    setInput(text);
-    inputRef.current?.focus();
-  }
-
   return (
     <div className="chat-layout">
 
-      {/* Sidebar */}
+      {/* Sidebar with mobile support */}
       <Sidebar
         activeMode={mode}
         onSelectConversation={loadConversation}
         onNewChat={handleNewChat}
         currentConvId={conversationId}
+        mobileOpen={sidebarOpen}
+        onMobileClose={() => setSidebarOpen(false)}
       />
 
-      {/* Main chat area */}
+      {/* Main */}
       <div className="chat-main">
 
-        {/* ── Top bar ── */}
+        {/* Topbar */}
         <header className="chat-topbar">
+
+          {/* Hamburger — mobile only */}
+          <button
+            className="hamburger-btn"
+            onClick={() => setSidebarOpen(true)}
+          >
+            <Menu size={20} />
+          </button>
+
           <button
             className="back-btn"
             onClick={() => navigate("/dashboard")}
@@ -148,9 +140,7 @@ export default function Chat() {
             style={{ "--mode-color": modeConfig.color }}
           >
             {modeConfig.icon}
-            <span>
-              {conversationTitle || modeConfig.label}
-            </span>
+            <span>{conversationTitle || modeConfig.label}</span>
           </div>
 
           <button className="new-chat-top-btn" onClick={handleNewChat}>
@@ -159,11 +149,9 @@ export default function Chat() {
           </button>
         </header>
 
-        {/* ── Messages area ── */}
+        {/* Messages */}
         <div className="messages-area">
-
           {messages.length === 0 ? (
-            /* Empty / welcome state */
             <div className="chat-welcome">
               <div
                 className="welcome-icon"
@@ -176,67 +164,53 @@ export default function Chat() {
                   {modeConfig.icon}
                 </span>
               </div>
-
               <h2 className="welcome-title">{modeConfig.label}</h2>
-
               <p className="welcome-sub">
-                {mode === "chat" &&
-                  "I'm ready to chat, joke around, or talk about anything."}
-                {mode === "study" &&
-                  "Ask me to explain any concept — I'll teach it step by step."}
-                {mode === "coding" &&
-                  "Paste your code, describe a bug, or ask me to build something."}
-                {mode === "math" &&
-                  "Give me any math problem and I'll walk through every step."}
+                {mode === "chat" && "I'm ready to chat, joke around, or talk about anything."}
+                {mode === "study" && "Ask me to explain any concept — I'll teach it step by step."}
+                {mode === "coding" && "Paste your code, describe a bug, or ask me to build something."}
+                {mode === "math" && "Give me any math problem and I'll walk through every step."}
               </p>
-
-              {/* Suggestion chips */}
               <div className="suggestion-chips">
                 {SUGGESTIONS[mode].map((s) => (
                   <button
                     key={s}
                     className="suggestion-chip"
                     style={{ "--chip-color": modeConfig.color }}
-                    onClick={() => handleSuggestion(s)}
+                    onClick={() => {
+                      setInput(s);
+                      inputRef.current?.focus();
+                    }}
                   >
                     {s}
                   </button>
                 ))}
               </div>
             </div>
-
           ) : (
-            /* Message list */
             <div className="message-list">
               {messages.map((msg) => (
                 <MessageBubble key={msg.id} message={msg} />
               ))}
-
-              {/* Typing animation */}
               {isLoading && <TypingIndicator />}
-
-              {/* Error */}
               {error && (
                 <div className="chat-error">
                   ⚠️ {error}
                   <button
                     onClick={() =>
-                      sendMessage(
-                        messages[messages.length - 2]?.content || ""
-                      )
+                      sendMessage(messages[messages.length - 2]?.content || "")
                     }
                   >
                     Retry
                   </button>
                 </div>
               )}
-
               <div ref={messagesEndRef} />
             </div>
           )}
         </div>
 
-        {/* ── Input bar ── */}
+        {/* Input bar */}
         <div className="chat-input-bar">
           <div
             className="input-wrapper"

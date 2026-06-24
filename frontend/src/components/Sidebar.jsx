@@ -7,18 +7,9 @@ import {
   getUser,
 } from "../utils/api";
 import {
-  MessageSquare,
-  BookOpen,
-  Code2,
-  Calculator,
-  LayoutDashboard,
-  Trash2,
-  LogOut,
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-  Clock,
-  User,
+  MessageSquare, BookOpen, Code2, Calculator,
+  LayoutDashboard, Trash2, LogOut, ChevronLeft,
+  ChevronRight, Plus, Clock, User, X
 } from "lucide-react";
 
 const MODE_ICONS = {
@@ -33,6 +24,8 @@ export default function Sidebar({
   onSelectConversation,
   onNewChat,
   currentConvId,
+  mobileOpen,
+  onMobileClose,
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [conversations, setConversations] = useState([]);
@@ -40,7 +33,6 @@ export default function Sidebar({
   const navigate = useNavigate();
   const user = getUser();
 
-  // Reload history whenever conversation changes
   useEffect(() => {
     loadHistory();
   }, [currentConvId]);
@@ -50,7 +42,7 @@ export default function Sidebar({
       const data = await historyAPI.getAll();
       setConversations(data.conversations || []);
     } catch {
-      // silent fail
+      // silent
     } finally {
       setLoading(false);
     }
@@ -66,6 +58,7 @@ export default function Sidebar({
     try {
       const data = await historyAPI.getOne(conv.id);
       onSelectConversation(data.conversation);
+      onMobileClose?.(); // close sidebar on mobile after selecting
     } catch {
       // silent
     }
@@ -77,105 +70,126 @@ export default function Sidebar({
     navigate("/login");
   }
 
+  function handleNewChat() {
+    onNewChat();
+    onMobileClose?.(); // close on mobile
+  }
+
   return (
-    <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
-
-      {/* Collapse toggle */}
-      <button
-        className="sidebar-toggle"
-        onClick={() => setCollapsed(!collapsed)}
-      >
-        {collapsed
-          ? <ChevronRight size={16} />
-          : <ChevronLeft size={16} />
-        }
-      </button>
-
-      {/* Logo */}
-      <div className="sidebar-logo">
-        <div className="logo-icon">⚡</div>
-        {!collapsed && <span className="logo-text">Synapse</span>}
-      </div>
-
-      {/* New Chat button */}
-      <button className="new-chat-btn" onClick={onNewChat}>
-        <Plus size={16} />
-        {!collapsed && <span>New Chat</span>}
-      </button>
-
-      {/* Dashboard link */}
-      <button
-        className="sidebar-nav-btn"
-        onClick={() => navigate("/dashboard")}
-      >
-        <LayoutDashboard size={16} />
-        {!collapsed && <span>Dashboard</span>}
-      </button>
-
-      {/* Chat History */}
-      {!collapsed && (
-        <div className="sidebar-section">
-
-          <div className="sidebar-section-label">
-            <Clock size={12} />
-            <span>Recent Chats</span>
-          </div>
-
-          <div className="conv-list">
-            {loading ? (
-              /* Skeleton loaders */
-              <div className="conv-loading">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="conv-skeleton" />
-                ))}
-              </div>
-            ) : conversations.length === 0 ? (
-              <p className="conv-empty">No conversations yet</p>
-            ) : (
-              conversations.map((conv) => (
-                <div
-                  key={conv.id}
-                  className={`conv-item ${
-                    conv.id === currentConvId ? "active" : ""
-                  }`}
-                  onClick={() => handleSelectConv(conv)}
-                >
-                  <span className="conv-mode-icon">
-                    {MODE_ICONS[conv.mode] || <MessageSquare size={14} />}
-                  </span>
-                  <span className="conv-title">{conv.title}</span>
-                  <button
-                    className="conv-delete"
-                    onClick={(e) => handleDelete(e, conv.id)}
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+    <>
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="sidebar-overlay"
+          onClick={onMobileClose}
+        />
       )}
 
-      {/* Bottom — user info + logout */}
-      <div className="sidebar-bottom">
+      <aside className={`sidebar ${collapsed ? "collapsed" : ""} ${mobileOpen ? "mobile-open" : ""}`}>
+
+        {/* Desktop collapse toggle */}
+        <button
+          className="sidebar-toggle desktop-only"
+          onClick={() => setCollapsed(!collapsed)}
+        >
+          {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+        </button>
+
+        {/* Mobile close button */}
+        <button
+          className="sidebar-toggle mobile-only"
+          onClick={onMobileClose}
+        >
+          <X size={16} />
+        </button>
+
+        {/* Logo */}
+        <div className="sidebar-logo">
+          <div className="logo-icon">⚡</div>
+          {!collapsed && <span className="logo-text">Synapse</span>}
+        </div>
+
+        {/* New Chat */}
+        <button className="new-chat-btn" onClick={handleNewChat}>
+          <Plus size={16} />
+          {!collapsed && <span>New Chat</span>}
+        </button>
+
+        {/* Dashboard */}
+        <button
+          className="sidebar-nav-btn"
+          onClick={() => { navigate("/dashboard"); onMobileClose?.(); }}
+        >
+          <LayoutDashboard size={16} />
+          {!collapsed && <span>Dashboard</span>}
+        </button>
+
+        {/* Profile */}
+        <button
+          className="sidebar-nav-btn"
+          onClick={() => { navigate("/profile"); onMobileClose?.(); }}
+        >
+          <User size={16} />
+          {!collapsed && <span>Profile</span>}
+        </button>
+
+        {/* History */}
         {!collapsed && (
-          <div className="sidebar-user">
-            <div className="user-avatar-small">
-              <User size={14} />
+          <div className="sidebar-section">
+            <div className="sidebar-section-label">
+              <Clock size={12} />
+              <span>Recent Chats</span>
             </div>
-            <span className="user-name">
-              {user?.username || "User"}
-            </span>
+            <div className="conv-list">
+              {loading ? (
+                <div className="conv-loading">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="conv-skeleton" />
+                  ))}
+                </div>
+              ) : conversations.length === 0 ? (
+                <p className="conv-empty">No conversations yet</p>
+              ) : (
+                conversations.map((conv) => (
+                  <div
+                    key={conv.id}
+                    className={`conv-item ${conv.id === currentConvId ? "active" : ""}`}
+                    onClick={() => handleSelectConv(conv)}
+                  >
+                    <span className="conv-mode-icon">
+                      {MODE_ICONS[conv.mode] || <MessageSquare size={14} />}
+                    </span>
+                    <span className="conv-title">{conv.title}</span>
+                    <button
+                      className="conv-delete"
+                      onClick={(e) => handleDelete(e, conv.id)}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         )}
 
-        <button className="logout-btn" onClick={handleLogout}>
-          <LogOut size={16} />
-          {!collapsed && <span>Logout</span>}
-        </button>
-      </div>
+        {/* Bottom */}
+        <div className="sidebar-bottom">
+          {!collapsed && (
+            <div className="sidebar-user">
+              <div className="user-avatar-small">
+                <User size={14} />
+              </div>
+              <span className="user-name">{user?.username || "User"}</span>
+            </div>
+          )}
+          <button className="logout-btn" onClick={handleLogout}>
+            <LogOut size={16} />
+            {!collapsed && <span>Logout</span>}
+          </button>
+        </div>
 
-    </aside>
+      </aside>
+    </>
   );
 }
