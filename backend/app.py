@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-load_dotenv()   # ← MUST be here, before importing routes
+load_dotenv()
 
 from flask import Flask, jsonify
 from flask_cors import CORS
@@ -13,21 +13,30 @@ from routes.chat import chat_bp
 from routes.history import history_bp
 
 
-
 def create_app():
     app = Flask(__name__)
 
-    # ── Config ────────────────────────────────────────────────
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///synapse.db")
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "change-this-in-production")
-    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = False   # tokens don't expire (add refresh later)
+    # ── Database config ───────────────────────────────────────────
+    if os.getenv("FLASK_ENV") == "production":
+        db_path = "/data/synapse.db"
+    else:
+        db_path = "synapse.db"
 
-    # ── Extensions ────────────────────────────────────────────
+    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["JWT_SECRET_KEY"] = os.getenv(
+        "JWT_SECRET_KEY", "change-this-in-production"
+    )
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = False
+
+    # ── Extensions ────────────────────────────────────────────────
     db.init_app(app)
 
-    CORS(app, resources={r"/api/*": {"origins": "*"}},
-         allow_headers=["Content-Type", "Authorization"])
+    CORS(app, resources={r"/api/*": {"origins": [
+        "http://localhost:3000",
+        "https://synapse-ai-agent.vercel.app",
+        "https://*.vercel.app"
+    ]}}, allow_headers=["Content-Type", "Authorization"])
 
     jwt = JWTManager(app)
 
@@ -38,33 +47,33 @@ def create_app():
         storage_uri="memory://",
     )
 
-    # ── JWT error handlers ────────────────────────────────────
+    # ── JWT error handlers ────────────────────────────────────────
     @jwt.unauthorized_loader
     def unauthorized_callback(reason):
-        return jsonify({"error": "Missing or invalid token", "reason": reason}), 401
+        return jsonify({"error": "Missing or invalid token"}), 401
 
     @jwt.invalid_token_loader
     def invalid_token_callback(reason):
-        return jsonify({"error": "Invalid token", "reason": reason}), 422
+        return jsonify({"error": "Invalid token"}), 422
 
     @jwt.expired_token_loader
     def expired_token_callback(jwt_header, jwt_payload):
         return jsonify({"error": "Token expired"}), 401
 
-    # ── Blueprints ────────────────────────────────────────────
+    # ── Blueprints ────────────────────────────────────────────────
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(chat_bp, url_prefix="/api")
     app.register_blueprint(history_bp, url_prefix="/api")
 
-    # ── Rate limit chat endpoint ──────────────────────────────
+    # ── Rate limit chat ───────────────────────────────────────────
     limiter.limit("30 per minute")(chat_bp)
 
-    # ── Health check ──────────────────────────────────────────
+    # ── Health check ──────────────────────────────────────────────
     @app.route("/api/health")
     def health():
         return jsonify({"status": "ok", "service": "Synapse AI"}), 200
 
-    # ── Init DB ───────────────────────────────────────────────
+    # ── Init DB ───────────────────────────────────────────────────
     with app.app_context():
         db.create_all()
         print("✅  Database tables ready")
